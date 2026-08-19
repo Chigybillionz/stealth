@@ -157,11 +157,7 @@ export interface MailboxQueueResponse {
 // ---------------------------------------------------------------------------
 
 export type UnknownSenderRequestStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "blocked"
-  | "expired";
+  "pending" | "approved" | "rejected" | "blocked" | "expired";
 
 export type UnknownSenderDecision = "approve_once" | "always_allow" | "reject" | "block" | "expire";
 

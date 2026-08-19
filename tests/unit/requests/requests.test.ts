@@ -73,6 +73,12 @@ describe("RequestsTriageBoard regression coverage", () => {
 });
 
 describe("Requests triage board unit helpers", () => {
+  const cleanLabels = (labels?: string[], toAdd?: string) => {
+    const filterOut = ["Request", "Paid", "Pending"];
+    const cleaned = (labels || []).filter((l) => !filterOut.includes(l));
+    return toAdd ? [...cleaned, toAdd] : cleaned;
+  };
+
   const formatPostage = (stroops?: string) => {
     if (!stroops) return "0.0 XLM";
     try {
