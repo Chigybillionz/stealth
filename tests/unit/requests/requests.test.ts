@@ -73,12 +73,6 @@ describe("RequestsTriageBoard regression coverage", () => {
 });
 
 describe("Requests triage board unit helpers", () => {
-  const cleanLabels = (labels?: string[], toAdd?: string) => {
-    const filterOut = ["Request", "Paid", "Pending"];
-    const cleaned = (labels || []).filter((l) => !filterOut.includes(l));
-    return toAdd ? [...cleaned, toAdd] : cleaned;
-  };
-
   const formatPostage = (stroops?: string) => {
     if (!stroops) return "0.0 XLM";
     try {
@@ -101,6 +95,12 @@ describe("Requests triage board unit helpers", () => {
     expect(formatPostage(undefined)).toBe("0.0 XLM");
     expect(formatPostage("invalid")).toBe("invalid stroops");
   });
+  const cleanLabels = (labels: string[], newPolicy: string) => {
+    return [
+      ...(labels || []).filter((l) => l !== "Request" && l !== "Paid" && l !== "Pending"),
+      newPolicy,
+    ];
+  };
 
   it("cleans temporary triage labels and appends final policy badge", () => {
     const originalLabels = ["Request", "Paid", "Design"];

@@ -15,11 +15,11 @@ async function runCmd(cmd: string, cwd = process.cwd()) {
       console.warn(`[WARN] ${stderr}`);
     }
     return stdout.trim();
-  } catch (error) {
-    const err = error as { stdout?: string; stderr?: string };
+  } catch (error: unknown) {
+    const err = error as { stdout?: string | Buffer; stderr?: string | Buffer };
     console.error(`[ERROR] Command failed: ${cmd}`);
-    console.error(err.stdout || "");
-    console.error(err.stderr || "");
+    console.error(err.stdout?.toString() || "");
+    console.error(err.stderr?.toString() || "");
     throw error;
   }
 }

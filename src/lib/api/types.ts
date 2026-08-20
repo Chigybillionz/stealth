@@ -54,7 +54,16 @@ export interface PublicProfile {
   username: string;
   displayName: string;
   avatarUrl?: string | null;
+  avatarMetadata?: Record<string, unknown> | null;
   bio?: string | null;
+  locale?: string;
+  timezone?: string;
+  addressDisplay?: "full" | "truncated";
+  notifications?: {
+    email: boolean;
+    desktop: boolean;
+    sound: boolean;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -198,6 +207,48 @@ export interface MailboxPolicyWrite {
   minimumPostage: string;
   requireVerified: boolean;
   requireReceipt?: boolean;
+  version?: number;
+}
+
+export type SenderRule = "default" | "allow" | "block";
+
+export type PolicyWriteStatus = "pending" | "submitted" | "confirmed" | "failed";
+
+export type PolicyReconciliationState =
+  | "synced"
+  | "pending_write"
+  | "failed"
+  | "diverged"
+  | "not_provisioned"
+  | "chain_ahead";
+
+export interface PolicyWriteIntent {
+  status: PolicyWriteStatus;
+  version: number;
+  policy: MailboxPolicy & { requireReceipt?: boolean };
+  scheduledAt: string;
+  updatedAt: string;
+  failureCount: number;
+  lastError: string | null;
+  txHash?: string | null;
+}
+
+export interface PolicyReconciliation {
+  owner: string;
+  state: PolicyReconciliationState;
+  offchain: {
+    policy: MailboxPolicy | null;
+    source: "default" | "configured" | null;
+    version: number | null;
+    intentStatus: PolicyWriteStatus | null;
+    intentUpdatedAt: string | null;
+    intentError: string | null;
+  };
+  chain: {
+    policy: MailboxPolicy | null;
+    version: number | null;
+  };
+  writeIntent: PolicyWriteIntent | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -295,6 +346,50 @@ export interface ContactListResponse {
 export interface MailboxSettings {
   policy: MailboxPolicy;
   requireReceipt: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// BETA-069 — account settings DTOs
+// ---------------------------------------------------------------------------
+
+export type AddressDisplay = "full" | "truncated";
+
+export interface AccountInfo {
+  userId: string;
+  username: string;
+  address: string;
+  email: string;
+  status: AccountStatus;
+  createdAt: string;
+  network: string;
+  policyVersion: number | null;
+  betaLimitations: string[];
+}
+
+export interface ProfileUpdateInput {
+  displayName?: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  avatarMetadata?: Record<string, unknown> | null;
+  locale?: string;
+  timezone?: string;
+  addressDisplay?: AddressDisplay;
+  notifications?: {
+    email?: boolean;
+    desktop?: boolean;
+    sound?: boolean;
+  };
+  version: number;
+}
+
+export interface AccountProfileResponse {
+  user: PublicUser;
+  profile: PublicProfile;
+  account: AccountInfo;
+}
+
+export interface ProfileUpdateResponse {
+  profile: PublicProfile;
 }
 
 // ---------------------------------------------------------------------------
