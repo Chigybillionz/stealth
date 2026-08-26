@@ -899,10 +899,14 @@ export async function getSenderRuleReconciliation(
   const writeIntent = await repository.getSenderRuleWriteIntent(owner, sender);
   const offchainRule = record?.rule ?? "default";
 
+  // The chain does not store "default" — null means no rule override, which
+  // is semantically equivalent to "default".
+  const effectiveChainRule = chainRule ?? "default";
+
   let state: "pending_write" | "synced" | "diverged" = "synced";
   if (writeIntent && writeIntent.status !== "confirmed") {
     state = "pending_write";
-  } else if (chainRule !== offchainRule) {
+  } else if (effectiveChainRule !== offchainRule) {
     state = "diverged";
   }
 
