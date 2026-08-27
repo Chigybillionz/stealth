@@ -141,13 +141,38 @@ describe("getPolicyReconciliation (BETA-023 / Issue #1930)", () => {
     expect(result.chain.policy).toBeNull();
   });
 
-  it("reports chain_ahead when chain version is 100 and off-chain is 1", async () => {
+  it("reports synced when chain version is ahead but policy content matches (sender-rule version bump)", async () => {
     const repository = new MemoryApiRepository();
     await initializeMailboxPolicyDefaults(repository, owner);
     await confirmPolicyWrite(repository, owner, "tx-1");
 
+    // Chain version 100 but policy content matches the off-chain beta defaults.
+    // A sender-rule write bumped the global version without changing the mailbox
+    // policy — this must NOT be reported as chain_ahead (BETA-041 review fix).
     const result = await getPolicyReconciliation(repository, owner, {
-      policy: BETA_POLICY_OFFCHAIN,
+      policy: {
+        allowUnknown: true,
+        requireVerified: false,
+        minimumPostage: "0",
+      },
+      version: 100,
+    });
+    expect(result.state).toBe("synced");
+    expect(result.chain.version).toBe(100);
+  });
+
+  it("reports chain_ahead when chain version is ahead AND policy content differs", async () => {
+    const repository = new MemoryApiRepository();
+    await initializeMailboxPolicyDefaults(repository, owner);
+    await confirmPolicyWrite(repository, owner, "tx-1");
+
+    // Chain version 100 with a different policy → true chain_ahead
+    const result = await getPolicyReconciliation(repository, owner, {
+      policy: {
+        allowUnknown: false,
+        requireVerified: true,
+        minimumPostage: "999",
+      },
       version: 100,
     });
     expect(result.state).toBe("chain_ahead");
@@ -170,6 +195,26 @@ describe("getPolicyReconciliation (BETA-023 / Issue #1930)", () => {
       version: 1,
     });
     expect(result.state).toBe("synced");
+  });
+
+  it("reports diverged when requireReceipt differs between chain and off-chain intent", async () => {
+    const repository = new MemoryApiRepository();
+    await initializeMailboxPolicyDefaults(repository, owner);
+    await confirmPolicyWrite(repository, owner, "tx-1");
+
+    // Chain says requireReceipt=true but the off-chain intent has
+    // requireReceipt=false (default).  The three-field MailboxPolicy
+    // matches, but the fourth field diverges → diverged.
+    const result = await getPolicyReconciliation(repository, owner, {
+      policy: {
+        allowUnknown: true,
+        requireVerified: false,
+        minimumPostage: "0",
+      },
+      version: 1,
+      requireReceipt: true,
+    });
+    expect(result.state).toBe("diverged");
   });
 });
 

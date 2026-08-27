@@ -33,6 +33,10 @@ async function readChainState(owner: string): Promise<PolicyReconciliationChainS
     return {
       policy: contractPolicyToApi(versioned.policy),
       version: versioned.version,
+      // The contract carries require_receipt as a fourth boolean that
+      // contractPolicyToApi strips; pass it through so reconciliation can
+      // detect receipt-policy drift.
+      requireReceipt: versioned.policy.require_receipt,
     };
   } catch {
     return null;
