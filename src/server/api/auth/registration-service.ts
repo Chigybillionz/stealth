@@ -8,7 +8,12 @@ import { hashPassword } from "./password";
 import { provisionManagedStellarWallet } from "../account-provisioning";
 import { prepareManagedWalletSecret } from "@/services/stellar/account-provision";
 import { createFundingAdapter } from "@/services/stellar/funding-adapter";
-import { checkIpLimit } from "../abuse-service";
+import {
+  checkIpLimit,
+  checkEmailDomainLimit,
+  checkInviteCode,
+  checkUsernameReservationLimit,
+} from "../abuse-service";
 import type { DeliveryReceipt, VerificationEmailMessage } from "@/services/notifications";
 import {
   buildVerificationUrl,
@@ -31,8 +36,13 @@ export async function registerWithPassword(
     deliver?: RegistrationDelivery;
     appUrl?: string;
     verificationPolicy?: VerificationPolicy;
+    inviteCodeRequired?: boolean;
+    validInviteCodes?: string[];
   },
 ): Promise<RegistrationResponse> {
+  // BETA-079: Layered abuse controls for registration
+
+  // 1. IP rate limiting
   const ipCheck = await checkIpLimit(
     apiContext.repository,
     ip,
@@ -44,6 +54,31 @@ export async function registerWithPassword(
     throw new ApiError(429, "too_many_requests", "Registration rate limit exceeded for IP", {
       retryAfterSeconds: ipCheck.retryAfterSeconds ?? SIGNUP_RATE_LIMIT_WINDOW_SECONDS,
     });
+  }
+
+  // 2. Email domain validation (blocks disposable emails and enforces daily limits)
+  const emailDomainCheck = await checkEmailDomainLimit(apiContext.repository, input.email);
+  if (!emailDomainCheck.allowed) {
+    throw new ApiError(429, "too_many_requests", "Email domain rate limit exceeded", {
+      retryAfterSeconds: emailDomainCheck.retryAfterSeconds ?? 86400,
+    });
+  }
+
+  // 3. Username reservation rate limiting
+  const usernameCheck = await checkUsernameReservationLimit(apiContext.repository, ip);
+  if (!usernameCheck.allowed) {
+    throw new ApiError(429, "too_many_requests", "Username reservation rate limit exceeded", {
+      retryAfterSeconds: usernameCheck.retryAfterSeconds ?? 3600,
+    });
+  }
+
+  // 4. Invite code validation (can be disabled without code changes)
+  const inviteCheck = await checkInviteCode(apiContext.repository, input.inviteCode, {
+    inviteCodeRequired: options?.inviteCodeRequired ?? false,
+    validCodes: options?.validInviteCodes,
+  });
+  if (!inviteCheck.allowed) {
+    throw new ApiError(403, "forbidden", inviteCheck.reason ?? "Invite code required", {});
   }
 
   const now = new Date();
