@@ -13,6 +13,7 @@ import {
   checkEmailDomainLimit,
   checkInviteCode,
   checkUsernameReservationLimit,
+  validateChallengeSolution,
 } from "../abuse-service";
 import type { DeliveryReceipt, VerificationEmailMessage } from "@/services/notifications";
 import {
@@ -79,6 +80,22 @@ export async function registerWithPassword(
   });
   if (!inviteCheck.allowed) {
     throw new ApiError(403, "forbidden", inviteCheck.reason ?? "Invite code required", {});
+  }
+
+  const config = loadRuntimeConfig();
+
+  // 5. Proof-of-Work validation
+  if (
+    !input.challengeId ||
+    !input.challengeNonce ||
+    !validateChallengeSolution(
+      input.challengeId,
+      input.challengeNonce,
+      2,
+      config.secrets?.operatorSecret ?? "stealth_challenge_secret",
+    )
+  ) {
+    throw new ApiError(403, "forbidden", "Invalid or missing proof of work challenge solution");
   }
 
   const now = new Date();

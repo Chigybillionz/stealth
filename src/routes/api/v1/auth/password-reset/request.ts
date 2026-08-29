@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
+import { checkPasswordResetAbuse } from "@/server/api/abuse-service";
 import { requestPasswordReset } from "@/server/api/auth/password-reset-service";
 import { getApiContext } from "@/server/api/context";
 import { emailSchema } from "@/server/api/domain";
@@ -38,6 +39,16 @@ export const Route = createFileRoute("/api/v1/auth/password-reset/request")({
             request.headers.get("cf-connecting-ip") ??
             request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
             "unknown";
+
+          const abuseCheck = await checkPasswordResetAbuse(apiContext.repository, input.email, ip);
+          if (!abuseCheck.allowed) {
+            throw new ApiError(
+              429,
+              "too_many_requests",
+              "Password reset rate limit exceeded",
+              { retryAfterSeconds: abuseCheck.retryAfterSeconds ?? 3600 },
+            );
+          }
 
           const delivery = await getVerificationDeliveryConfig();
           const adapter = await getVerificationNotificationAdapter();

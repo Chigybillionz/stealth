@@ -9,6 +9,7 @@ import { apiSuccess, handleApiRequest } from "@/server/api/response";
 import { withIdempotency } from "@/server/api/idempotency-service";
 import { loadRuntimeConfig } from "@/config";
 import { createFundingAdapter } from "@/services/stellar/funding-adapter";
+import { checkTestnetFundingAbuse } from "@/server/api/abuse-service";
 
 const paramsSchema = z.object({
   userId: z.string().min(1, "User ID cannot be empty"),
@@ -43,6 +44,13 @@ export const Route = createFileRoute("/api/v1/accounts/$userId/wallet/provision"
           const rawIdempotencyKey = request.headers.get("x-idempotency-key");
 
           const provision = async () => {
+            const fundingCheck = await checkTestnetFundingAbuse(apiContext.repository, userId, origin);
+            if (!fundingCheck.allowed) {
+              throw new ApiError(429, "too_many_requests", "Testnet funding rate limit exceeded", {
+                retryAfterSeconds: fundingCheck.retryAfterSeconds ?? 86400,
+              });
+            }
+
             const result = await provisionManagedStellarWallet(
               apiContext.repository,
               userId,

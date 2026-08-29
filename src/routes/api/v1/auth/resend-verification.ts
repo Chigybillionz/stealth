@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { checkPasswordResetAbuse } from "@/server/api/abuse-service";
+import { checkIpLimit } from "@/server/api/abuse-service";
 import { getApiContext } from "@/server/api/context";
 import { emailSchema } from "@/server/api/domain";
 import { ApiError } from "@/server/api/errors";
@@ -32,7 +32,7 @@ export const Route = createFileRoute("/api/v1/auth/resend-verification")({
             request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
             "unknown";
 
-          const abuseCheck = await checkPasswordResetAbuse(apiContext.repository, input.email, ip);
+          const abuseCheck = await checkIpLimit(apiContext.repository, ip, "verification", 10, 3600);
           if (!abuseCheck.allowed) {
             throw new ApiError(
               429,

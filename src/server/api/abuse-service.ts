@@ -335,7 +335,9 @@ export async function checkInviteCode(
     return { allowed: false, reason: "invite_code_required" };
   }
 
-  const validCodes = envOpts?.validCodes ?? ["STEALTH_BETA_2026", "BETA_INVITE_VIP"];
+  const validCodes = (envOpts?.validCodes ?? ["STEALTH_BETA_2026", "BETA_INVITE_VIP"]).map((c) =>
+    c.toUpperCase(),
+  );
   const normalized = inviteCode.trim().toUpperCase();
 
   if (!validCodes.includes(normalized)) {
@@ -408,7 +410,13 @@ export function createChallengeNonce(secretKey = "stealth_challenge_secret"): {
   challengeId: string;
   difficulty: number;
 } {
-  const challengeId = `chal_${crypto.randomUUID().replace(/-/g, "")}`;
+  const timestamp = Date.now();
+  const rawId = `chal_${crypto.randomUUID().replace(/-/g, "")}`;
+  const signature = createHash("sha256")
+    .update(`${rawId}:${timestamp}:${secretKey}`)
+    .digest("hex")
+    .slice(0, 16);
+  const challengeId = `${rawId}_${timestamp}_${signature}`;
   return { challengeId, difficulty: 2 };
 }
 
@@ -416,8 +424,27 @@ export function validateChallengeSolution(
   challengeId: string,
   solutionNonce: string,
   difficulty = 2,
+  secretKey = "stealth_challenge_secret",
 ): boolean {
   if (!challengeId || !solutionNonce) return false;
+  
+  const parts = challengeId.split("_");
+  if (parts.length !== 4 || parts[0] !== "chal") return false;
+  
+  const rawId = `${parts[0]}_${parts[1]}`;
+  const timestampStr = parts[2];
+  const signature = parts[3];
+  
+  const expectedSignature = createHash("sha256")
+    .update(`${rawId}:${timestampStr}:${secretKey}`)
+    .digest("hex")
+    .slice(0, 16);
+    
+  if (signature !== expectedSignature) return false;
+  
+  const timestamp = parseInt(timestampStr, 10);
+  if (isNaN(timestamp) || Date.now() - timestamp > 5 * 60 * 1000) return false;
+
   const hash = createHash("sha256").update(`${challengeId}:${solutionNonce}`).digest("hex");
   const prefix = "0".repeat(difficulty);
   return hash.startsWith(prefix);

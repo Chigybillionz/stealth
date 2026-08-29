@@ -30,6 +30,7 @@ export const registrationRequestSchema = z
     termsVersion: z.literal(CURRENT_TERMS_VERSION),
     privacyPolicyVersion: z.literal(CURRENT_PRIVACY_POLICY_VERSION),
     inviteCode: z.string().trim().optional(),
+    challengeId: z.string().trim().optional(),
     challengeNonce: z.string().trim().optional(),
   })
   .strict()
